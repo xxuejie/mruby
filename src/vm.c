@@ -37,7 +37,7 @@ void abort(void);
 #define SET_SYM_VALUE(r,v) MRB_SET_VALUE(r, MRB_TT_SYMBOL, value.sym, (v))
 #define SET_OBJ_VALUE(r,v) MRB_SET_VALUE(r, (((struct RObject*)(v))->tt), value.p, (v))
 #ifdef MRB_NAN_BOXING
-#define SET_FLT_VALUE(mrb,r,v) r.f = (v)
+#define SET_FLT_VALUE(mrb,r,v) mrb_value_deserialize(r).f = (v)
 #elif defined(MRB_WORD_BOXING)
 #define SET_FLT_VALUE(mrb,r,v) r = mrb_float_value(mrb, (v))
 #else
@@ -1479,7 +1479,7 @@ mrb_context_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int
 
 #define TYPES2(a,b) ((((uint16_t)(a))<<8)|(((uint16_t)(b))&0xff))
 #define OP_MATH_BODY(op,v1,v2) do {\
-  regs[a].v1 = regs[a].v1 op regs[a+1].v2;\
+  mrb_value_deserialize(regs[a]).v1 = mrb_value_deserialize(regs[a]).v1 op mrb_value_deserialize(regs[a+1]).v2; \
 } while(0)
 
     CASE(OP_ADD) {
@@ -1720,7 +1720,7 @@ mrb_context_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int
       switch (mrb_type(regs[a])) {
       case MRB_TT_FIXNUM:
         {
-          mrb_int x = regs[a].attr_i;
+          mrb_int x = mrb_value_deserialize(regs[a]).attr_i;
           mrb_int y = GETARG_C(i);
           mrb_int z = x + y;
 
@@ -1729,7 +1729,7 @@ mrb_context_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int
             SET_FLT_VALUE(mrb, regs[a], (mrb_float)x + (mrb_float)y);
             break;
           }
-          regs[a].attr_i = z;
+          mrb_value_deserialize(regs[a]).attr_i = z;
         }
         break;
       case MRB_TT_FLOAT:
@@ -1739,7 +1739,7 @@ mrb_context_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int
           SET_FLT_VALUE(mrb, regs[a], x + GETARG_C(i));
         }
 #else
-        regs[a].attr_f += GETARG_C(i);
+        mrb_value_deserialize(regs[a]).attr_f += GETARG_C(i);
 #endif
         break;
       default:
@@ -1759,7 +1759,7 @@ mrb_context_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int
       switch (mrb_type(regs_a[0])) {
       case MRB_TT_FIXNUM:
         {
-          mrb_int x = regs_a[0].attr_i;
+          mrb_int x = mrb_value_deserialize(regs_a[0]).attr_i;
           mrb_int y = GETARG_C(i);
           mrb_int z = x - y;
 
@@ -1768,7 +1768,7 @@ mrb_context_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int
             SET_FLT_VALUE(mrb, regs_a[0], (mrb_float)x - (mrb_float)y);
           }
           else {
-            regs_a[0].attr_i = z;
+            mrb_value_deserialize(regs_a[0]).attr_i = z;
           }
         }
         break;
@@ -1779,7 +1779,7 @@ mrb_context_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int
           SET_FLT_VALUE(mrb, regs[a], x - GETARG_C(i));
         }
 #else
-        regs_a[0].attr_f -= GETARG_C(i);
+        mrb_value_deserialize(regs_a[0]).attr_f -= GETARG_C(i);
 #endif
         break;
       default:
@@ -1791,7 +1791,7 @@ mrb_context_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int
     }
 
 #define OP_CMP_BODY(op,v1,v2) do {\
-  if (regs[a].v1 op regs[a+1].v2) {\
+  if (mrb_value_deserialize(regs[a]).v1 op mrb_value_deserialize(regs[a+1]).v2) {  \
     SET_TRUE_VALUE(regs[a]);\
   }\
   else {\

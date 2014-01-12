@@ -19,9 +19,9 @@ mrb_obj_eq(mrb_state *mrb, mrb_value v1, mrb_value v2)
 
   case MRB_TT_FALSE:
   case MRB_TT_FIXNUM:
-    return (v1.value.i == v2.value.i);
+    return (mrb_value_deserialize(v1).value.i == mrb_value_deserialize(v2).value.i);
   case MRB_TT_SYMBOL:
-    return (v1.value.sym == v2.value.sym);
+    return (mrb_value_deserialize(v1).value.sym == mrb_value_deserialize(v2).value.sym);
 
   case MRB_TT_FLOAT:
     return (mrb_float(v1) == mrb_float(v2));

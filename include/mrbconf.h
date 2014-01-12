@@ -18,13 +18,16 @@
 //#define MRB_INT64
 
 /* represent mrb_value in boxed double; conflict with MRB_USE_FLOAT */
-//#define MRB_NAN_BOXING
+#define MRB_NAN_BOXING
 
 /* define on big endian machines; used by MRB_NAN_BOXING */
 //#define MRB_ENDIAN_BIG
 
 /* represent mrb_value as a word (natural unit of data for the processor) */
 // #define MRB_WORD_BOXING
+
+/* represent mrb_value in primitive types; use together with MRB_NAN_BOXING or MRB_WORD_BOXING */
+#define MRB_BOXING_PRIMITIVE_TYPE
 
 /* argv max size in mrb_funcall */
 //#define MRB_FUNCALL_ARGC_MAX 16

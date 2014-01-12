@@ -81,6 +81,24 @@ typedef short mrb_sym;
 typedef uint8_t mrb_bool;
 struct mrb_state;
 
+#if defined(MRB_BOXING_PRIMITIVE_TYPE)
+
+#if !(defined(MRB_NAN_BOXING) || defined(MRB_WORD_BOXING))
+# error "MRB_BOXING_PRIMITIVE_TYPE must be used with one of the boxing mode!"
+#endif
+
+#define mrb_value_serialize(v) ((( union { mrb_value val; mrb_value_internal itv; } ) { .itv = v }).val)
+#define mrb_value_deserialize(v) ((( union { mrb_value val; mrb_value_internal itv; } ) { .val = v }).itv)
+#define mrb_value_internal_type mrb_value_internal
+
+#else
+
+#define mrb_value_serialize(v) (v)
+#define mrb_value_deserialize(v) (v)
+#define mrb_value_internal_type mrb_value
+
+#endif
+
 #if defined(MRB_NAN_BOXING)
 
 #ifdef MRB_USE_FLOAT
@@ -126,7 +144,11 @@ enum mrb_vtype {
 #define MRB_ENDIAN_LOHI(a,b) b a
 #endif
 
-typedef struct mrb_value {
+#ifdef MRB_BOXING_PRIMITIVE_TYPE
+typedef double mrb_value;
+#endif
+
+typedef struct mrb_value_internal_type {
   union {
     mrb_float f;
     union {
@@ -142,7 +164,7 @@ typedef struct mrb_value {
       };
     } value;
   };
-} mrb_value;
+} mrb_value_internal_type;
 
 /* value representation by nan-boxing:
  *   float : FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF
@@ -152,28 +174,30 @@ typedef struct mrb_value {
  * In order to get enough bit size to save TT, all pointers are shifted 2 bits
  * in the right direction.
  */
-#define mrb_tt(o)       (((o).value.ttt & 0xfc000)>>14)
+#define mrb_tt(o)       (((mrb_value_deserialize(o)).value.ttt & 0xfc000)>>14)
 #define mrb_mktt(tt)    (0xfff00000|((tt)<<14))
-#define mrb_type(o)     ((uint32_t)0xfff00000 < (o).value.ttt ? mrb_tt(o) : MRB_TT_FLOAT)
-#define mrb_ptr(o)      ((void*)((((uintptr_t)0x3fffffffffff)&((uintptr_t)((o).value.p)))<<2))
-#define mrb_float(o)    (o).f
+#define mrb_type(o)     ((uint32_t)0xfff00000 < (mrb_value_deserialize(o)).value.ttt ? mrb_tt(o) : MRB_TT_FLOAT)
+#define mrb_ptr(o)      ((void*)((((uintptr_t)0x3fffffffffff)&((uintptr_t)((mrb_value_deserialize(o)).value.p)))<<2))
+#define mrb_float(o)    (mrb_value_deserialize(o)).f
 
 #define MRB_SET_VALUE(o, tt, attr, v) do {\
-  (o).value.ttt = mrb_mktt(tt);\
+  mrb_value_internal_type iv_;\
+  iv_.value.ttt = mrb_mktt(tt);\
   switch (tt) {\
   case MRB_TT_FALSE:\
   case MRB_TT_TRUE:\
   case MRB_TT_UNDEF:\
   case MRB_TT_FIXNUM:\
-  case MRB_TT_SYMBOL: (o).attr = (v); break;\
-  default: (o).value.i = 0; (o).value.p = (void*)((uintptr_t)(o).value.p | (((uintptr_t)(v))>>2)); break;\
+  case MRB_TT_SYMBOL: iv_.attr = (v); break;\
+  default: iv_.value.i = 0; iv_.value.p = (void*)((uintptr_t)iv_.value.p | (((uintptr_t)(v))>>2)); break;\
   }\
+  (o) = mrb_value_serialize(iv_);\
 } while (0)
 
 static inline mrb_value
 mrb_float_value(struct mrb_state *mrb, mrb_float f)
 {
-  mrb_value v;
+  mrb_value_internal_type v;
 
   if (f != f) {
     v.value.ttt = 0x7ff80000;
@@ -181,7 +205,7 @@ mrb_float_value(struct mrb_state *mrb, mrb_float f)
   } else {
     v.f = f;
   }
-  return v;
+  return mrb_value_serialize(v);
 }
 #define mrb_float_pool(mrb,f) mrb_float_value(mrb,f)
 
@@ -319,13 +343,13 @@ mrb_float_value(struct mrb_state *mrb, mrb_float f)
 #define mrb_cptr(o) mrb_ptr(o)
 #define mrb_fixnum_p(o) (mrb_type(o) == MRB_TT_FIXNUM)
 #define mrb_undef_p(o) (mrb_type(o) == MRB_TT_UNDEF)
-#define mrb_nil_p(o)  (mrb_type(o) == MRB_TT_FALSE && !(o).value.i)
+#define mrb_nil_p(o)  (mrb_type(o) == MRB_TT_FALSE && !(mrb_value_deserialize(o)).value.i)
 #define mrb_bool(o)   (mrb_type(o) != MRB_TT_FALSE)
 
 #endif  /* no boxing */
 
-#define mrb_fixnum(o) (o).value.i
-#define mrb_symbol(o) (o).value.sym
+#define mrb_fixnum(o) (mrb_value_deserialize(o)).value.i
+#define mrb_symbol(o) (mrb_value_deserialize(o)).value.sym
 #define mrb_float_p(o) (mrb_type(o) == MRB_TT_FLOAT)
 #define mrb_symbol_p(o) (mrb_type(o) == MRB_TT_SYMBOL)
 #define mrb_array_p(o) (mrb_type(o) == MRB_TT_ARRAY)
